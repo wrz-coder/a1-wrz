@@ -59,16 +59,14 @@ def matmul_with_importance(
     e = weight.shape[1]
     hd = h // num_heads
 
-    # ----- 构建 mask（top_p OR top_k） -----
+    # ----- 构建 mask（top_p AND top_k） -----
+    _, topk_idx = torch.topk(probs, top_k, dim=1)
+    mask_k = torch.zeros_like(probs, dtype=torch.bool)
+    mask_k.scatter_(1, topk_idx, True)
+
     mask_p = probs >= top_p
 
-    mask_k = torch.zeros_like(probs, dtype=torch.bool)
-    if top_k is not None:
-        flat_probs = probs.flatten()
-        _, topk_idx = torch.topk(flat_probs, top_k)
-        mask_k.flatten()[topk_idx] = True
-
-    mask = mask_p | mask_k
+    mask = mask_p & mask_k
 
     # ----- 筛选重要位置 -----
     x_sel = input[mask]                                    # [t, h]
